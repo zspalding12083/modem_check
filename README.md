@@ -26,7 +26,7 @@ git clone https://github.com/zspalding12083/modem_check.git ~/modem_check
 cd ~/modem_check
 pip3 install --user requests cryptography matplotlib
 cp config.example.ini config.ini && chmod 600 config.ini   # then edit: modem password, interface
-python3 modem_check.py check                                 # quick read-only test of the modem login
+python3 modem_check.py check                                 # test the login; prints the modem's certificate fingerprint
 python3 -m unittest discover -s tests                        # parser tests against saved sample pages
 ```
 
@@ -54,7 +54,7 @@ python3 modem_check.py ping                  # ping test; starts a full run if t
 python3 modem_check.py note "Tech visit: replaced drop" --at "2026-10-06 10:00"
 python3 modem_check.py report --pdf          # everything so far -> reports/*.html + .pdf
 python3 modem_check.py report --since 2026-10-09 --until 2026-10-10 --pdf
-python3 dashboard.py --port 8520 --bind 0.0.0.0   # dashboard (also installed as a service)
+python3 dashboard.py --port 8520                  # dashboard on 127.0.0.1 (also installed as a service)
 ```
 
 ## Configuration (`config.ini`)
@@ -62,6 +62,7 @@ python3 dashboard.py --port 8520 --bind 0.0.0.0   # dashboard (also installed as
 | Section / key | Default | Meaning |
 |---|---|---|
 | `[modem] host`, `username`, `password` | 192.168.100.1, admin | Modem web UI login (`MODEM_PASSWORD` env var overrides) |
+| `[modem] cert_sha256` | (none) | Pin the modem's self-signed certificate (fingerprint from `check`); recommended, see Security |
 | `[modem] interface` | (none) | Bind every test to this NIC (e.g. `eth0`), so tests use the cable connection even when a VPN is up |
 | `[tests] ping_targets`, `ping_count` | google.com, 10 | Ping test |
 | `[tests] download_bytes`, `upload_bytes`, `speedtest_timeout` | 100 MB, 25 MB, 30 s | Speed test size and time cap |
@@ -93,9 +94,36 @@ Notes:
 
 ## Dashboard
 
-`dashboard.py` serves the report at `http://<host>:8520/`, rebuilt from the database on every page load,
+`dashboard.py` serves the report at `http://127.0.0.1:8520/`, rebuilt from the database on every page load,
 with range buttons (24 h / 7 days / 30 days / all / custom) and a "Download PDF" link. Chart values show on
-hover or tap. There is no login: anyone who can reach the port can view it, so keep it on your LAN.
+hover or tap.
+
+It has **no login**, and the report includes your modem's MAC, serial number and connection history, so
+the service listens on localhost only. To view it from other devices on your LAN (e.g. a phone), opt in:
+
+```bash
+systemctl --user edit modem-dashboard.service
+# add:
+#   [Service]
+#   ExecStart=
+#   ExecStart=/usr/bin/python3 %h/modem_check/dashboard.py --port 8520 --bind 0.0.0.0
+systemctl --user restart modem-dashboard.service
+```
+
+Only do this on a network you trust, and never forward the port to the internet.
+
+## Security
+
+- **Modem password.** The SB8200 serves HTTPS with a self-signed certificate, and its login "encryption"
+  is keyed from a token the modem sends, so it only protects against casual viewing. Anything that can
+  impersonate the modem on your network could capture the password. Run the tool on a trusted wired LAN,
+  and set `cert_sha256` (printed by `python3 modem_check.py check`): connections to anything presenting a
+  different certificate are then refused before the password is sent. If the modem's certificate changes
+  (e.g. after a firmware update), `check` reports the mismatch and shows the new fingerprint.
+- **Secrets.** `config.ini` is git-ignored; keep it `chmod 600`. The password can come from the
+  `MODEM_PASSWORD` environment variable instead.
+- **Reports and database** (`reports/`, `data/`) contain your modem's identifiers and connection
+  history; they are git-ignored. Review a report before sharing it.
 
 ## License
 

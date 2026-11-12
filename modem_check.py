@@ -30,7 +30,8 @@ HERE = Path(__file__).resolve().parent
 DEFAULT_CONFIG = HERE / "config.ini"
 
 DEFAULTS = {
-    "modem": {"host": "192.168.100.1", "username": "admin", "password": "", "interface": ""},
+    # cert_sha256: optional pin for the modem's self-signed certificate (see `check`); empty = not checked
+    "modem": {"host": "192.168.100.1", "username": "admin", "password": "", "interface": "", "cert_sha256": ""},
     "tests": {
         "ping_targets": "google.com",
         "ping_count": "10",
@@ -81,7 +82,7 @@ def now_local():
 # ---------------------------------------------------------------------------
 
 class Modem:
-    def __init__(self, host, username, password, interface=""):
+    def __init__(self, host, username, password, interface="", cert_sha256=""):
         import requests
         import urllib3
         from requests.adapters import HTTPAdapter
@@ -92,13 +93,17 @@ class Modem:
             def init_poolmanager(self, *a, **k):
                 if interface:
                     k["socket_options"] = [(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, interface.encode())]
+                if cert_sha256:
+                    # The certificate can't be verified against a CA, but it can be pinned: urllib3 refuses
+                    # the connection (before any password is sent) if the fingerprint doesn't match.
+                    k["assert_fingerprint"] = cert_sha256.replace(":", "").lower()
                 super().init_poolmanager(*a, **k)
 
         self.base = f"https://{host}"
         self.host = host
         self.username, self.password = username, password
         self.s = requests.Session()
-        self.s.verify = False  # modem uses a self-signed certificate
+        self.s.verify = False  # modem uses a self-signed certificate; set cert_sha256 to pin it
         # The modem's web server drops requests that don't look like the browser UI's XHRs.
         self.s.headers.update({
             "Connection": "close",
@@ -111,6 +116,22 @@ class Modem:
         self.s.mount("https://", adapter)
         self.s.mount("http://", adapter)
         self.hw_model = None
+        self.interface = interface
+
+    def cert_fingerprint(self):
+        """SHA-256 fingerprint of the certificate the modem presents (for the cert_sha256 setting)."""
+        import ssl
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(15)
+        if self.interface:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, self.interface.encode())
+        sock.connect((self.host, 443))
+        with ctx.wrap_socket(sock) as tls:
+            der = tls.getpeercert(binary_form=True)
+        return ":".join(f"{b:02x}" for b in hashlib.sha256(der).digest())
 
     def _token(self):
         return self.s.cookies.get("sessionToken", domain=self.host) or self.s.cookies.get("sessionToken")
@@ -492,7 +513,7 @@ def _poll(cfg, no_tests, trigger):
     ts = now_local()
     poll_id = None
     try:
-        modem = Modem(m["host"], m["username"], m["password"], m.get("interface", ""))
+        modem = Modem(m["host"], m["username"], m["password"], m.get("interface", ""), m.get("cert_sha256", ""))
         pages = modem.fetch_all()
         g = parse_global(pages[FUN_GLOBAL])
         offset = None
@@ -577,7 +598,12 @@ def cmd_note(cfg, args):
 
 def cmd_check(cfg, args):
     m = cfg["modem"]
-    modem = Modem(m["host"], m["username"], m["password"], m.get("interface", ""))
+    modem = Modem(m["host"], m["username"], m["password"], m.get("interface", ""), m.get("cert_sha256", ""))
+    fp = modem.cert_fingerprint()
+    pinned = m.get("cert_sha256", "").replace(":", "").lower()
+    print(f"modem certificate sha256: {fp}"
+          + (" (matches cert_sha256)" if pinned == fp.replace(":", "") else
+             " (does NOT match cert_sha256)" if pinned else " (not pinned: add as cert_sha256 in config.ini)"))
     pages = modem.fetch_all()
     g = parse_global(pages[FUN_GLOBAL])
     print(f"{g['hw_model']} hw {g['hw_version']} fw {g['sw_version']}")

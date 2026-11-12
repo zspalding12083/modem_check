@@ -35,7 +35,7 @@ class Parsers(unittest.TestCase):
     def test_eventlog(self):
         ev = m.parse_eventlog(fx(13))
         first = ev[0]
-        self.assertEqual(first["time"].isoformat(), "2026-10-08T14:51:26")  # DD/MM/YYYY
+        self.assertEqual(first["time"].isoformat(), "2026-01-15T14:51:26")  # DD/MM/YYYY
         self.assertTrue(any("T3 time-out" in e["text"] for e in ev))
         self.assertEqual(m.short_event_text(ev[1]["text"]), "No Ranging Response received - T3 time-out")
 

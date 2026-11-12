@@ -1,9 +1,10 @@
 [Unit]
-Description=Modem monitoring dashboard on port 8520 (LAN)
+Description=Modem monitoring dashboard on http://127.0.0.1:8520
+# LAN access is opt-in: systemctl --user edit modem-dashboard.service (see README)
 
 [Service]
 WorkingDirectory=%h/modem_check
-ExecStart=/usr/bin/python3 %h/modem_check/dashboard.py --port 8520 --bind 0.0.0.0
+ExecStart=/usr/bin/python3 %h/modem_check/dashboard.py --port 8520 --bind 127.0.0.1
 Restart=on-failure
 
 [Install]
