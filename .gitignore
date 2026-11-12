@@ -1,0 +1,7 @@
+config.ini
+data/
+__pycache__/
+*.pyc
+reports/
+NOTES.md
+make_tech_pdf.sh

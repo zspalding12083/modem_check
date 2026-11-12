@@ -1,0 +1,10 @@
+[Unit]
+Description=Ping test every 5 minutes (starts a full run if the line looks unhealthy)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/modem_check
+ExecStart=/usr/bin/python3 %h/modem_check/modem_check.py ping
+TimeoutStartSec=600

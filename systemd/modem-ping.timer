@@ -1,0 +1,9 @@
+[Unit]
+Description=Ping test every 5 minutes (2, 7, 12 ... past the hour, clear of the :00/:30 full runs)
+
+[Timer]
+OnCalendar=*:02/5
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

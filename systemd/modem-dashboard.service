@@ -1,0 +1,10 @@
+[Unit]
+Description=Modem monitoring dashboard on port 8520 (LAN)
+
+[Service]
+WorkingDirectory=%h/modem_check
+ExecStart=/usr/bin/python3 %h/modem_check/dashboard.py --port 8520 --bind 0.0.0.0
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

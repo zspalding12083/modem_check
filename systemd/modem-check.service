@@ -1,0 +1,10 @@
+[Unit]
+Description=Poll cable modem and run ping/speed test
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/modem_check
+ExecStart=/usr/bin/python3 %h/modem_check/modem_check.py poll --trigger timer
+TimeoutStartSec=600
