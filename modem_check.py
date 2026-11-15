@@ -341,7 +341,12 @@ def _curl(args, timeout, interface="", stdin=None):
     cmd = ["curl", "-s", "-o", "/dev/null", "-m", str(timeout), "-w", "%{json}"]
     if interface:
         cmd += ["--interface", interface]
-    p = subprocess.run(cmd + args, input=stdin, capture_output=True, timeout=timeout + 15)
+    try:
+        p = subprocess.run(cmd + args, input=stdin, capture_output=True, timeout=timeout + 15)
+    except subprocess.TimeoutExpired:
+        # curl can hang past its own -m limit (seen while name lookups were failing during an outage);
+        # report it like curl's own time-out instead of crashing the run.
+        return 28, {"errormsg": f"no response within {timeout + 15} s (curl did not exit)"}
     try:
         info = json.loads(p.stdout.decode() or "{}")
     except json.JSONDecodeError:
@@ -552,7 +557,11 @@ def _poll(cfg, no_tests, trigger):
 
     if not no_tests:
         record_pings(cfg, db, "full run")
-        s = run_speedtest(cfg)
+        try:
+            s = run_speedtest(cfg)
+        except Exception as exc:  # record the failure; never lose the rest of the run
+            s = {"server": "speed.cloudflare.com", "down_mbps": 0.0, "up_mbps": 0.0, "latency_ms": None,
+                 "down_bytes": 0, "up_bytes": 0, "error": f"speed test failed: {type(exc).__name__}: {exc}"[:300]}
         db.execute("INSERT INTO speedtests (ts, server, down_mbps, up_mbps, latency_ms, down_bytes, up_bytes, error,"
                    " trigger) VALUES (?,?,?,?,?,?,?,?,?)",
                    (_iso(now_local()), s["server"], s["down_mbps"], s["up_mbps"], s["latency_ms"],
