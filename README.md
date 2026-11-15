@@ -1,3 +1,10 @@
+<p align="left">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/stc-logo-dark.svg">
+    <img alt="Spalding Technology Consulting" src="assets/brand/stc-logo-light.svg" height="56">
+  </picture>
+</p>
+
 # modem_check
 
 Monitors an **ARRIS SURFboard SB8200** cable modem and your internet connection, and builds a
@@ -128,3 +135,7 @@ Only do this on a network you trust, and never forward the port to the internet.
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+---
+
+<img src="assets/brand/stc-mark.svg" alt="" height="20" align="top"> A [Spalding Technology Consulting](https://github.com/zspalding12083) project.
