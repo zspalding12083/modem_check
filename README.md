@@ -1,7 +1,7 @@
 <p align="left">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/stc-logo-dark.svg">
-    <img alt="Spalding Technology Consulting" src="assets/brand/stc-logo-light.svg" height="56">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/zs-logo-horizontal-dark-bg.svg">
+    <img alt="ZS Tech | Zachary Spalding Technology Services" src="assets/brand/zs-logo-horizontal-light-bg.svg" height="64">
   </picture>
 </p>
 
@@ -134,8 +134,9 @@ Only do this on a network you trust, and never forward the port to the internet.
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE). The ZS Tech mark files in `assets/brand/` are not covered by the MIT
+License: they are all rights reserved and may be used only to identify ZS Tech (Zachary Spalding Technology Services) and its projects.
 
 ---
 
-<img src="assets/brand/stc-mark.svg" alt="" height="20" align="top"> A [Spalding Technology Consulting](https://github.com/zspalding12083) project.
+<img src="assets/brand/zs-mark.svg" alt="" height="20" align="top"> A **ZS Tech** project · Zachary Spalding Technology Services · [zspalding12083](https://github.com/zspalding12083). Systems · Networks · Cloud · Open source.
