@@ -26,6 +26,26 @@ upstream channels losing lock), where the ISP needed evidence collected while th
 Tested with an SB8200 (hardware 3.0, firmware AC01.01.008_122722_8200.03.07.733) on Ubuntu 22.04
 (Orange Pi 5) and Ubuntu 26.04, Python 3.10+. Other firmware versions may use different pages.
 
+## Screenshots
+
+Seven days of real data from the dashboard (identifiers replaced with documentation values).
+
+**Outage summary.** Each outage has a start and end window, a length range and what was measured.
+
+![Outage summary table](docs/screenshots/dashboard-outages.png)
+
+**Conditions during an outage.** Modem readings taken during the outage, compared with the last reading before it.
+
+![Modem conditions during an outage](docs/screenshots/outage-snapshot.png)
+
+**Speed tests.** Shaded spans are outages. Values show on hover or tap in the dashboard.
+
+![Upload and download speed charts](docs/screenshots/speed-charts.png)
+
+**Upstream transmit power per channel.** The drop on Nov 14 is the modem losing its upstream channels.
+
+![Upstream power per channel](docs/screenshots/upstream-power.png)
+
 ## Setup
 
 ```bash
@@ -40,6 +60,8 @@ python3 -m unittest discover -s tests                        # parser tests agai
 `curl` and `ping` must be installed. PDFs need Chrome/Chromium; if a snap-packaged Chromium does not
 start (some ARM boards), `pip3 install --user playwright && python3 -m playwright install chromium`
 provides a headless build that is found automatically.
+
+If `check` cannot reach the modem, see [Reaching the modem through your router](#reaching-the-modem-through-your-router).
 
 Run it on schedule with systemd user units (they expect the project at `~/modem_check`):
 
@@ -98,6 +120,68 @@ Notes:
   counting failed decodes on a channel it can't receive).
 - The modem's clock may differ from local time; each poll records the difference and the report shows
   event times both as logged and converted.
+
+## Reaching the modem through your router
+
+The SB8200 answers at `192.168.100.1` even though your router's WAN port has a public address from the
+ISP. Your LAN does not include that address, so a request to it goes to your router, out the WAN port, and
+the modem picks it up. Test first from the machine that will run the tool:
+
+```bash
+ping -c 3 192.168.100.1
+curl -sk -o /dev/null -w '%{http_code}\n' https://192.168.100.1/    # 200 means the web UI is reachable
+```
+
+Many consumer routers pass this through with no changes. If yours does not, the router needs an address
+on the modem's `192.168.100.0/24` network on its WAN side, and needs to NAT traffic for that network
+to that address.
+
+### pfSense / Netgate (the setup this project runs behind)
+
+1. **Firewall → Virtual IPs → Add**
+   - Type **IP Alias**, Interface **WAN**.
+   - Address **192.168.100.2 / 24**. Pick an address that is not `.1`.
+   - Description "Modem access", then **Save** and **Apply Changes**.
+2. **Firewall → NAT → Outbound**
+   - Switch mode from Automatic to **Hybrid** and **Save**.
+   - **Add** a mapping: Interface **WAN**, Address Family **IPv4**, Protocol **any**.
+   - Source **LAN subnets**, or just the monitoring machine's address as `/32`.
+   - Destination **Network 192.168.100.0 / 24**.
+   - Translation Address **192.168.100.2 (Modem access)**.
+   - **Save** and **Apply Changes**.
+3. **Firewall rules.** If the monitoring machine is on a VLAN whose rules block private networks
+   (RFC 1918), add a pass rule to `192.168.100.1` above the block rule.
+
+Once this is set up, the modem's event log shows the tool's logins as `client ip=[192.168.100.2]`.
+
+### OPNsense
+
+The same two steps:
+1. **Interfaces → Virtual IPs → Settings**: add an IP Alias on WAN, `192.168.100.2/24`.
+2. **Firewall → NAT → Outbound**: choose Hybrid mode and add a rule. Interface WAN, destination
+   `192.168.100.0/24`, translation the new virtual IP.
+
+### Other home routers
+
+- **Netgear, TP-Link, ASUS, Linksys, eero, Google/Nest Wifi, UniFi gateways:** in router mode these usually
+  reach the modem without any changes. Run the test above before changing anything.
+- **A mesh system or second router behind the main one (double NAT):** this also works, because each
+  router forwards the traffic upstream. Run the tool on any machine that can reach the internet.
+- **Routers that block private destinations on the WAN** (some security or "anti-spoofing" options): look
+  for a setting such as "Block private networks", "RFC 1918 filter" or "Bogon filter" on the WAN and
+  turn it off. pfSense and OPNsense apply these filters to incoming traffic only, so they do not
+  get in the way here.
+- **Routers with a static route or WAN alias option:** add the alias the same way as on pfSense, if the
+  router offers one.
+- **ASUS with Asuswrt-Merlin:** a `wan-event` script can add the alias, for example
+  `ip addr add 192.168.100.2/24 dev eth0`. Use your WAN interface name.
+- **VPN on the monitoring machine:** a full-tunnel VPN sends `192.168.100.1` into the tunnel. Set
+  `[modem] interface = eth0` (your wired NIC) so the tool goes around it.
+- **Guest, IoT or isolated networks:** these often block everything except the internet. Run the tool
+  from your main LAN, or allow `192.168.100.1` from that network.
+
+Use the IP address, not a hostname. Once it works, set `cert_sha256` (see Security), so the password
+is only ever sent to your modem.
 
 ## Dashboard
 
