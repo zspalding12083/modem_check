@@ -216,6 +216,14 @@ Only do this on a network you trust, and never forward the port to the internet.
 - **Reports and database** (`reports/`, `data/`) contain your modem's identifiers and connection
   history; they are git-ignored. Review a report before sharing it.
 
+## Related
+
+- **[netdash](https://github.com/zspalding12083/netdash)**: a network dashboard for pfSense and UniFi (internet
+  health, traffic per network and device, Wi-Fi, firewall blocks), with logins and HTTPS. On a box that also
+  runs modem_check, it reads `data/modem.db` (read-only, it never logs in to the modem) and shows the modem's
+  status, signal, speed tests and outages next to the router and Wi-Fi data, with a link back to this
+  dashboard for the full report. modem_check needs no changes for this.
+
 ## License
 
 MIT, see [LICENSE](LICENSE). The ZS Tech mark files in `assets/brand/` are not covered by the MIT
